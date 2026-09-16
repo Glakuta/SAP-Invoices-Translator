@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "allowJs": true,
+    "isolatedModules": true,
+    "rootDir": ".",
+    "types": ["jest", "node"],
+    "paths": {
+      "@sap/cds": [
+        "./node_modules/@cap-js/cds-types"
+      ],
+      "#cds-models/*": [
+        "./@cds-models/*"
+      ]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "srv/invoiceHandler.ts",
+    "coverage",
+    "jest.config.js"
+  ]
+}

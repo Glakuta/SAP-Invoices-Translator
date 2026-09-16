@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice {{docNum}} - {{cardName}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #333;
+        }
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 20px;
+        }
+        .company-info h1 {
+            font-size: 28px;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .company-info p {
+            color: #666;
+            font-size: 11px;
+        }
+        .invoice-title {
+            text-align: right;
+        }
+        .invoice-title h2 {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .invoice-meta {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .meta-group h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 5px;
+        }
+        .meta-group p {
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .parties {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .party {
+            width: 48%;
+        }
+        .party h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 10px;
+        }
+        .party p {
+            margin-bottom: 3px;
+            font-size: 12px;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .items-table th {
+            background-color: #2c3e50;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .items-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 12px;
+        }
+        .items-table tr:nth-child(even) td {
+            background-color: #f9f9f9;
+        }
+        .items-table .text-right {
+            text-align: right;
+        }
+        .items-table .text-center {
+            text-align: center;
+        }
+        .totals {
+            width: 300px;
+            margin-left: auto;
+            border-top: 2px solid #2c3e50;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 12px;
+        }
+        .total-row.final {
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 1px solid #2c3e50;
+            margin-top: 5px;
+            padding-top: 12px;
+        }
+        .notes {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        .notes h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 10px;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+        }
+        @media print {
+            body { -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <div class="header">
+            <div class="company-info">
+                <h1>{{company.name}}</h1>
+                <p>{{company.address}}</p>
+                <p>{{company.city}}, {{company.postalCode}} {{company.country}}</p>
+                <p>{{_translations.phone}}: {{company.phone}} | {{_translations.email}}: {{company.email}}</p>
+                <p>{{_translations.vatId}}: {{company.vatId}}</p>
+            </div>
+<div class="invoice-title">
+            <h2>{{_translations.invoice}}</h2>
+            <div style="font-size: 12px; color: #666;">
+                {{_translations.invoiceNumber}} {{docNum}} / {{docEntry}}
+            </div>
+        </div>
+        </div>
+
+        <div class="invoice-meta">
+            <div class="meta-group">
+                <h3>{{_translations.invoiceDate}}</h3>
+                <p>{{formatDate docDate}}</p>
+            </div>
+            <div class="meta-group">
+                <h3>{{_translations.dueDate}}</h3>
+                <p>{{formatDate docDueDate}}</p>
+            </div>
+            <div class="meta-group">
+                <h3>{{_translations.currency}}</h3>
+                <p>{{docCurrency}}</p>
+            </div>
+            <div class="meta-group">
+                <h3>{{_translations.language}}</h3>
+                <p>{{invoiceLanguage}}</p>
+            </div>
+        </div>
+
+        <div class="parties">
+            <div class="party">
+                <h3>{{_translations.billTo}}</h3>
+                <p><strong>{{cardName}}</strong></p>
+                {{#if contractor}}
+                    <p>{{contractor.address}}</p>
+                    <p>{{contractor.postalCode}} {{contractor.city}}</p>
+                    <p>{{contractor.country}}</p>
+                    {{#if contractor.vatId}}<p>{{_translations.vatId}}: {{contractor.vatId}}</p>{{/if}}
+                    {{#if contractor.phone}}<p>{{_translations.phone}}: {{contractor.phone}}</p>{{/if}}
+                    {{#if contractor.email}}<p>{{_translations.email}}: {{contractor.email}}</p>{{/if}}
+                {{else}}
+                    <p>{{address}}</p>
+                    <p>{{billToCountry}}</p>
+                {{/if}}
+            </div>
+            <div class="party">
+                <h3>{{_translations.shipTo}}</h3>
+                {{#if contractor}}
+                    <p>{{contractor.address}}</p>
+                    <p>{{contractor.postalCode}} {{contractor.city}}</p>
+                    <p>{{contractor.country}}</p>
+                {{else}}
+                    <p>{{address}}</p>
+                    <p>{{shipToCountry}}</p>
+                {{/if}}
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 40%;">{{_translations.description}}</th>
+                    <th style="width: 10%;" class="text-center">{{_translations.quantity}}</th>
+                    <th style="width: 10%;" class="text-center">{{_translations.unit}}</th>
+                    <th style="width: 15%;" class="text-right">{{_translations.unitPrice}}</th>
+                    <th style="width: 10%;" class="text-center">{{_translations.vat}}</th>
+                    <th style="width: 10%;" class="text-right">{{_translations.total}}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each invoiceItems}}
+                <tr>
+                    <td class="text-center">{{@index}}</td>
+                    <td>
+                        <strong>{{itemCode}}</strong><br>
+                        <span style="color: #666; font-size: 11px;">{{itemDescription}}</span>
+                    </td>
+                    <td class="text-center">{{quantity}}</td>
+                    <td class="text-center">{{currency}}</td>
+                    <td class="text-right">{{formatNumber unitPrice}} {{docCurrency}}</td>
+                    <td class="text-center">{{vatGroup}}</td>
+                    <td class="text-right">{{formatNumber lineTotal}} {{../docCurrency}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <div class="total-row">
+                <span>{{_translations.subtotal}}</span>
+                <span>{{formatNumber (subtotal invoiceItems)}} {{docCurrency}}</span>
+            </div>
+            <div class="total-row">
+                <span>{{_translations.vatSum}} ({{vatSum}})</span>
+                <span>{{formatNumber vatSum}} {{docCurrency}}</span>
+            </div>
+            <div class="total-row final">
+                <span>{{_translations.total}}</span>
+                <span>{{formatNumber docTotal}} {{docCurrency}}</span>
+            </div>
+        </div>
+
+        {{#if comments}}
+        <div class="notes">
+            <h3>{{_translations.notes}}</h3>
+            <p>{{comments}}</p>
+        </div>
+        {{/if}}
+
+        <div class="footer">
+            <p>{{_translations.thankYou}}</p>
+            <p>{{_translations.generatedOn}} {{formatDate (now)}}</p>
+        </div>
+    </div>
+
+    <script>
+        Handlebars.registerHelper('formatDate', function(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB');
+        });
+
+        Handlebars.registerHelper('formatNumber', function(num) {
+            if (num === undefined || num === null) return '0.00';
+            return Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        });
+
+        Handlebars.registerHelper('subtotal', function(items) {
+            if (!items || !items.length) return '0.00';
+            return items.reduce((sum, item) => sum + (item.lineTotal || 0), 0).toFixed(2);
+        });
+
+        Handlebars.registerHelper('now', function() {
+            return new Date().toISOString();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+{
+  "name": "SAP-Invoices-Translator",
+  "version": "1.0.0",
+  "dependencies": {
+    "@sap/cds": "^9",
+    "cf-nodejs-logging-support": "^8.0.0",
+    "handlebars": "^4.7.9",
+    "i18next": "^26.4.2",
+    "nodemailer": "^9.0.5",
+    "puppeteer": "^25.8.0",
+    "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "@cap-js/cds-test": "^1.0.2",
+    "@cap-js/cds-typer": ">=0.1",
+    "@cap-js/cds-types": "^0.16.0",
+    "@cap-js/sqlite": "^2.4",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.13.3",
+    "@types/nodemailer": "^8.0.1",
+    "@types/puppeteer": "^5.4.7",
+    "axios": "^1.20.0",
+    "dotenv": "^17.4.2",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.12",
+    "tsx": "^4",
+    "typescript": "^6.0.0"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "private": true,
+  "imports": {
+    "#cds-models/*": "./@cds-models/*/index.js"
+  }
+}
