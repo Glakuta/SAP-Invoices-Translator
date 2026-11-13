@@ -1,6 +1,7 @@
 import { SAPService, createSAPService } from './sapService';
 import { ProcessInvoiceService } from './processInvoiceService';
 import { dispatchLogService } from './dispatchLogService';
+import { handleError, InvoiceErrorType } from './handleError';
 import cds from '@sap/cds';
 
 const logger = cds.log('retryInvoiceService');
@@ -24,13 +25,21 @@ export class RetryInvoiceService {
       if (existingLog?.status_code === 'SENT') {
         const errorMsg = 'Invoice already sent, cannot retry';
         logger.warn(`[${cid}] ${errorMsg}`);
-        return { success: false, error: errorMsg };
+        return handleError({
+          type: InvoiceErrorType.ALREADY_SENT,
+          message: errorMsg,
+          docEntry,
+        });
       }
 
       if (existingLog?.status_code === 'PROCESSING') {
         const errorMsg = 'Invoice is currently being processed';
         logger.warn(`[${cid}] ${errorMsg}`);
-        return { success: false, error: errorMsg };
+        return handleError({
+          type: InvoiceErrorType.INVALID_DATA,
+          message: errorMsg,
+          docEntry,
+        });
       }
 
       const result = await this.processInvoiceService.processInvoice({ 
@@ -52,7 +61,12 @@ export class RetryInvoiceService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`[${cid}] Error retrying invoice ${docEntry}:`, error);
-      return { success: false, error: errorMessage };
+      return handleError({
+        type: InvoiceErrorType.UNKNOWN,
+        message: errorMessage,
+        docEntry,
+        cause: error instanceof Error ? error : undefined,
+      });
     }
   }
 

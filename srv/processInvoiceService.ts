@@ -1,8 +1,10 @@
 import { SAPService, createSAPService, InvoiceData as SAPInvoiceData } from './sapService';
-import { InvoiceGenerator, generateInvoice, InvoiceData } from './genInvoice';
+import { InvoiceData } from '../types';
 import { ProcessInvoiceOptions, ProcessInvoiceResult } from '../types';
 import { dispatchLogService, DispatchLogEntry } from './dispatchLogService';
 import { sendEmail, EmailSendResult } from './sendEmail';
+import { handleError, InvoiceErrorType, InvoiceError } from './handleError';
+import { PdfGeneratorFactory } from './pdf';
 import cds from '@sap/cds';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -17,6 +19,7 @@ interface ProcessingContext {
 
 export class ProcessInvoiceService {
   private sapService: SAPService;
+  private pdfGenerator = PdfGeneratorFactory.createFromEnv();
   private processedInvoices: Set<number> = new Set();
   private readonly MAX_RETRIES = 3;
   private readonly logger = cds.log("customLogger");
@@ -127,62 +130,52 @@ export class ProcessInvoiceService {
       const existingInvoiceData = await this.sapService.getInvoice(docEntry);
       if (existingInvoiceData.invoiceStatus?.status === 'PDF_GENERATED' || existingInvoiceData.invoiceStatus?.status === 'SENT') {
         const errorMsg = 'Invoice already has a generated PDF or was sent';
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMsg
+        return handleError({
+          type: InvoiceErrorType.ALREADY_PROCESSED,
+          message: errorMsg,
+          docEntry,
+          invoiceData: invoiceDataMapped,
         });
-        return {
-          success: false,
-          error: errorMsg,
-        };
       }
 
       invoiceDataMapped = this.mapSAPToInvoiceData(invoiceData);
 
       if (!this.validateInvoiceData(invoiceDataMapped)) {
         const errorMsg = 'Invoice data is incomplete or invalid';
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMsg
+        return handleError({
+          type: InvoiceErrorType.INVALID_DATA,
+          message: errorMsg,
+          docEntry,
+          invoiceData: invoiceDataMapped,
         });
-        return {
-          success: false,
-          error: errorMsg,
-          invoiceData: invoiceDataMapped
-        };
       }
 
       if (!invoiceDataMapped.contractor?.email) {
         const errorMsg = 'Missing contractor email address';
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMsg
+        return handleError({
+          type: InvoiceErrorType.MISSING_EMAIL,
+          message: errorMsg,
+          docEntry,
+          invoiceData: invoiceDataMapped,
         });
-        return {
-          success: false,
-          error: errorMsg,
-          invoiceData: invoiceDataMapped
-        };
       }
 
       if (!this.isValidEmail(invoiceDataMapped.contractor.email)) {
         const errorMsg = `Invalid contractor email address: ${invoiceDataMapped.contractor.email}`;
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMsg
+        return handleError({
+          type: InvoiceErrorType.INVALID_EMAIL,
+          message: errorMsg,
+          docEntry,
+          invoiceData: invoiceDataMapped,
         });
-        return {
-          success: false,
-          error: errorMsg,
-          invoiceData: invoiceDataMapped
-        };
       }
 
-      const result = await generateInvoice(invoiceDataMapped, options.outputDir);
+      const result = await this.pdfGenerator.generate(invoiceDataMapped);
 
       await dispatchLogService.updateEntry(docEntry, {
         pdfFilePath: result.filePath,
         pdfGeneratedAt: new Date(),
+        pdfMetadata: result.metadata,
         status: 'PDF_GENERATED'
       });
 
@@ -202,9 +195,12 @@ export class ProcessInvoiceService {
       this.logger.error(`Error processing invoice ${docEntry}:`, error);
       
       if (docEntry) {
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMessage
+        return handleError({
+          type: InvoiceErrorType.UNKNOWN,
+          message: errorMessage,
+          docEntry,
+          invoiceData: invoiceDataMapped,
+          cause: error instanceof Error ? error : undefined,
         });
       }
       
@@ -229,20 +225,22 @@ export class ProcessInvoiceService {
 
       if (!invoiceDataMapped.contractor?.email) {
         const errorMsg = 'Missing contractor email address';
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMsg
+        return handleError({
+          type: InvoiceErrorType.MISSING_EMAIL,
+          message: errorMsg,
+          docEntry,
+          invoiceData: invoiceDataMapped,
         });
-        return { success: false, error: errorMsg, invoiceData: invoiceDataMapped };
       }
 
       if (!this.isValidEmail(invoiceDataMapped.contractor.email)) {
         const errorMsg = `Invalid contractor email address: ${invoiceDataMapped.contractor.email}`;
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMsg
+        return handleError({
+          type: InvoiceErrorType.INVALID_EMAIL,
+          message: errorMsg,
+          docEntry,
+          invoiceData: invoiceDataMapped,
         });
-        return { success: false, error: errorMsg, invoiceData: invoiceDataMapped };
       }
 
       const existingLog = await dispatchLogService.getEntry(docEntry);
@@ -250,22 +248,22 @@ export class ProcessInvoiceService {
 
       if (existingLog?.status_code === 'SENT') {
         const errorMsg = 'Invoice already sent';
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMsg,
-          numberOfAttempts: attemptNumber
+        return handleError({
+          type: InvoiceErrorType.ALREADY_SENT,
+          message: errorMsg,
+          docEntry,
+          invoiceData: invoiceDataMapped,
         });
-        return { success: false, error: errorMsg, invoiceData: invoiceDataMapped };
       }
 
       if (!existingLog?.pdfFilePath) {
         const errorMsg = 'PDF not generated yet';
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMsg,
-          numberOfAttempts: attemptNumber
+        return handleError({
+          type: InvoiceErrorType.PDF_GENERATION_FAILED,
+          message: errorMsg,
+          docEntry,
+          invoiceData: invoiceDataMapped,
         });
-        return { success: false, error: errorMsg, invoiceData: invoiceDataMapped };
       }
 
       const pdfPath = existingLog.pdfFilePath;
@@ -298,25 +296,24 @@ export class ProcessInvoiceService {
         this.logger.info(`✅ [${cid}] Email sent successfully for invoice ${docEntry}`);
         return { success: true, message: 'Email sent successfully', invoiceData: invoiceDataMapped };
       } else {
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: emailResult.error,
-          numberOfAttempts: attemptNumber
+        return handleError({
+          type: InvoiceErrorType.EMAIL_SEND_FAILED,
+          message: emailResult.error || 'Failed to send email',
+          docEntry,
+          invoiceData: invoiceDataMapped,
         });
-        return { success: false, error: emailResult.error, invoiceData: invoiceDataMapped };
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Error sending email for invoice ${docEntry}:`, error);
       
-      if (docEntry) {
-        await dispatchLogService.updateEntry(docEntry, {
-          status: 'ERROR',
-          errorMessage: errorMessage
-        });
-      }
-      
-      throw error;
+      return handleError({
+        type: InvoiceErrorType.EMAIL_SEND_FAILED,
+        message: errorMessage,
+        docEntry,
+        invoiceData: invoiceDataMapped,
+        cause: error instanceof Error ? error : undefined,
+      });
     }
   }
 

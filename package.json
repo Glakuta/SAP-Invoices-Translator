@@ -3,12 +3,22 @@
   "version": "1.0.0",
   "dependencies": {
     "@sap/cds": "^9",
+    "@sap/xb-msg-amqp-v100": "^0.9.58",
     "cf-nodejs-logging-support": "^8.0.0",
     "handlebars": "^4.7.9",
     "i18next": "^26.4.2",
     "nodemailer": "^9.0.5",
     "puppeteer": "^25.8.0",
     "uuid": "^14.0.2"
+  },
+  "cds": {
+    "requires": {
+      "messaging": {
+        "[hybrid]": {
+          "kind": "enterprise-messaging-shared"
+        }
+      }
+    }
   },
   "devDependencies": {
     "@cap-js/cds-test": "^1.0.2",

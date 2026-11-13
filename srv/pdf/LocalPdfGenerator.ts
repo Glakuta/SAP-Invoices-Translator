@@ -3,82 +3,38 @@ import path from 'path';
 import puppeteer, { Browser } from 'puppeteer';
 import handlebars from 'handlebars';
 import cds from '@sap/cds';
-import { translateInvoice, detectTargetLanguage } from './translationService';
+import { translateInvoice } from '../translationService';
+import { InvoiceData } from '../../types';
+import { PdfGenerator, PdfResult, PdfMetadata } from './PdfGenerator';
 
-const logger = cds.log('invoiceGenerator');
+const logger = cds.log('pdf:local');
 
-export interface InvoiceData {
-  docEntry?: number;
-  docNum?: number;
-  cardCode?: string;
-  cardName?: string;
-  docDate?: string;
-  docDueDate?: string;
-  docCurrency?: string;
-  docTotal?: number;
-  vatSum?: number;
-  comments?: string;
-  address?: string;
-  invoiceItems?: Array<{
-    itemCode?: string;
-    itemDescription?: string;
-    quantity?: number;
-    unitPrice?: number;
-    currency?: string;
-    vatGroup?: string;
-    lineTotal?: number;
-    warehouseCode?: string;
-  }>;
-  contractor?: {
-    cardCode?: string;
-    cardName?: string;
-    address?: string;
-    city?: string;
-    country?: string;
-    postalCode?: string;
-    phone?: string;
-    email?: string;
-    vatId?: string;
-  };
-  billToCountry?: string;
-  shipToCountry?: string;
-  invoiceLanguage?: string;
-}
+export class LocalPdfGenerator implements PdfGenerator {
+  private browser: Browser | null = null;
 
-export interface GenerateInvoiceResult {
-  buffer: Buffer;
-  filePath: string;
-}
+  constructor(private outputDir: string = 'output') {}
 
-export class InvoiceGenerator {
-  private outputDir: string;
-
-  constructor(
-    private invoiceData: InvoiceData,
-    outputDir: string = 'output'
-  ) {
-    this.outputDir = outputDir;
-  }
-
-  async generateInvoicePDF(): Promise<GenerateInvoiceResult> {
-    const correlationId = this.invoiceData.docEntry?.toString() || 'unknown';
-    let browser: Browser | null = null;
+  async generate(invoiceData: InvoiceData): Promise<PdfResult> {
+    const start = Date.now();
+    const docEntry = invoiceData.docEntry || invoiceData.docNum || 0;
+    const correlationId = `pdf-local-${docEntry}-${Date.now()}`;
+    let page: any = null;
 
     try {
-      logger.info(`[${correlationId}] Starting PDF generation`);
+      logger.info(`[${correlationId}] Starting local PDF generation`, { docEntry });
 
-      const translatedData = await translateInvoice(this.invoiceData);
+      const translatedData = await translateInvoice(invoiceData);
 
       const templateHtml = this.loadTemplate();
       const template = handlebars.compile(templateHtml);
       const html = template(translatedData);
 
       logger.info(`[${correlationId}] Template rendered, launching browser`);
-      browser = await puppeteer.launch({ 
+      this.browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
-      const page = await browser.newPage();
+      page = await this.browser.newPage();
       await page.setContent(html, { waitUntil: 'load' });
 
       logger.info(`[${correlationId}] Generating PDF`);
@@ -88,27 +44,53 @@ export class InvoiceGenerator {
         printBackground: true,
       });
 
-      await browser.close();
-      browser = null;
+      await page.close();
+      page = null;
+      await this.browser.close();
+      this.browser = null;
 
       const pdfBuffer = Buffer.from(pdfUint8Array);
-      const filePath = this.generateFilePath();
-      await this.savePDF(pdfBuffer, filePath);
+      const filePath = this.buildFilePath(invoiceData);
+      await this.savePdf(pdfBuffer, filePath);
 
-      logger.info(`[${correlationId}] PDF generated successfully: ${filePath}`);
-      return { buffer: pdfBuffer, filePath };
+      const metadata: PdfMetadata = {
+        source: 'LOCAL',
+        layoutName: 'invoiceTemplate.html (Handlebars + Puppeteer)',
+        generationTimeMs: Date.now() - start,
+        sapDocEntry: docEntry,
+        timestamp: new Date().toISOString(),
+      };
+
+      logger.info(`[${correlationId}] PDF generated successfully`, {
+        filePath,
+        size: pdfBuffer.length,
+        generationTimeMs: metadata.generationTimeMs,
+      });
+
+      return { buffer: pdfBuffer, filePath, metadata };
     } catch (error) {
-      if (browser) {
+      if (page) {
         try {
-          await browser.close();
-        } catch (closeError) {
-          logger.warn(`[${correlationId}] Error closing browser:`, closeError);
+          await page.close();
+        } catch {
+          // ignore
         }
+      }
+      if (this.browser) {
+        try {
+          await this.browser.close();
+        } catch {
+          // ignore
+        }
+        this.browser = null;
       }
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error(`[${correlationId}] Error generating PDF:`, { error: errorMessage, stack: error instanceof Error ? error.stack : undefined });
-      
+      logger.error(`[${correlationId}] Error generating PDF:`, {
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
       if (error instanceof Error && error.message.includes('ENOENT')) {
         throw new Error(`Template file not found: ${errorMessage}`);
       }
@@ -123,7 +105,7 @@ export class InvoiceGenerator {
   }
 
   private loadTemplate(): string {
-    const templatePath = 'templates/invoiceTemplate.html';
+    const templatePath = path.join(process.cwd(), 'templates', 'invoiceTemplate.html');
     try {
       if (!fs.existsSync(templatePath)) {
         throw new Error(`Template file not found: ${templatePath}`);
@@ -135,11 +117,11 @@ export class InvoiceGenerator {
     }
   }
 
-  private generateFilePath(): string {
+  private buildFilePath(invoiceData: InvoiceData): string {
     const year = new Date().getFullYear().toString();
-    const cardCode = this.invoiceData.cardCode || 'UNKNOWN';
-    const docNum = this.invoiceData.docNum || this.invoiceData.docEntry || 'UNKNOWN';
-    const docEntry = this.invoiceData.docEntry || this.invoiceData.docNum || 'UNKNOWN';
+    const cardCode = invoiceData.cardCode || 'UNKNOWN';
+    const docNum = invoiceData.docNum || invoiceData.docEntry || 'UNKNOWN';
+    const docEntry = invoiceData.docEntry || invoiceData.docNum || 'UNKNOWN';
 
     const dirPath = path.join(this.outputDir, year, cardCode);
     const fileName = `${docNum}_${docEntry}.pdf`;
@@ -147,9 +129,9 @@ export class InvoiceGenerator {
     return path.join(dirPath, fileName);
   }
 
-  private async savePDF(pdfBuffer: Buffer, filePath: string): Promise<void> {
+  private async savePdf(pdfBuffer: Buffer, filePath: string): Promise<void> {
     const dirPath = path.dirname(filePath);
-    
+
     try {
       if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
@@ -161,7 +143,7 @@ export class InvoiceGenerator {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`Failed to save PDF to ${filePath}:`, error);
-      
+
       const nodeError = error as NodeJS.ErrnoException;
       if (nodeError.code === 'EACCES') {
         throw new Error(`Permission denied writing to directory: ${dirPath}`);
@@ -172,12 +154,4 @@ export class InvoiceGenerator {
       throw new Error(`Failed to save PDF: ${errorMessage}`);
     }
   }
-}
-
-export async function generateInvoice(
-  invoiceData: InvoiceData,
-  outputDir?: string
-): Promise<GenerateInvoiceResult> {
-  const generator = new InvoiceGenerator(invoiceData, outputDir);
-  return generator.generateInvoicePDF();
 }

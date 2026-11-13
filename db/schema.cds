@@ -46,6 +46,7 @@ entity DispatchLog: cuid, managed {
     status : Association to processStatus;
     errorMessage : String;
     timestamp : Timestamp;
+    pdfMetadata : LargeString;
 }
 
 entity InvoiceItem: cuid, managed {

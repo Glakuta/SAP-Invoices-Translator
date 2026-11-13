@@ -4,6 +4,7 @@ import { ProcessInvoiceService } from './processInvoiceService';
 import { ProcessInvoiceOptions, ProcessInvoiceResult } from '../types';
 import { dispatchLogService } from './dispatchLogService';
 import { SAPService, createSAPService } from './sapService';
+import { handleError, InvoiceErrorType } from './handleError';
 
 class InvoicesService extends cds.ApplicationService {
     private processInvoiceService: ProcessInvoiceService;
@@ -102,6 +103,12 @@ class InvoicesService extends cds.ApplicationService {
             };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            await handleError({
+              type: InvoiceErrorType.EMAIL_SEND_FAILED,
+              message: errorMessage,
+              docEntry,
+              cause: error instanceof Error ? error : undefined,
+            });
             req.error(500, `Failed to send invoice email: ${errorMessage}`);
         }
     }
@@ -158,7 +165,7 @@ class InvoicesService extends cds.ApplicationService {
         };
     }
 
-    async retryInvoice(req: any) {
+async retryInvoice(req: any) {
         const { docEntry } = req.data;
         
         if (!docEntry) {
@@ -177,7 +184,7 @@ class InvoicesService extends cds.ApplicationService {
             docEntry, 
             correlationId: `retry-${docEntry}-${Date.now()}` 
           });
-            
+             
             if (!result.success) {
                 req.error(500, result.error || 'Failed to retry invoice processing');
                 return;
@@ -190,6 +197,12 @@ class InvoicesService extends cds.ApplicationService {
             };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            await handleError({
+              type: InvoiceErrorType.UNKNOWN,
+              message: errorMessage,
+              docEntry,
+              cause: error instanceof Error ? error : undefined,
+            });
             req.error(500, `Failed to retry invoice: ${errorMessage}`);
         }
     }
@@ -218,6 +231,12 @@ class InvoicesService extends cds.ApplicationService {
             };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            await handleError({
+              type: InvoiceErrorType.SAP_ERROR,
+              message: errorMessage,
+              docEntry,
+              cause: error instanceof Error ? error : undefined,
+            });
             req.error(500, `Failed to reset invoice: ${errorMessage}`);
         }
     }
@@ -235,6 +254,12 @@ class InvoicesService extends cds.ApplicationService {
             return log || { message: 'No log entry found' };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            await handleError({
+              type: InvoiceErrorType.SAP_ERROR,
+              message: errorMessage,
+              docEntry,
+              cause: error instanceof Error ? error : undefined,
+            });
             req.error(500, `Failed to get dispatch log: ${errorMessage}`);
         }
     }

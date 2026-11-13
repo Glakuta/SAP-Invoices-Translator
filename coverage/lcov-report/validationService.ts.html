@@ -198,15 +198,7 @@
 <a name='L133'></a><a href='#L133'>133</a>
 <a name='L134'></a><a href='#L134'>134</a>
 <a name='L135'></a><a href='#L135'>135</a>
-<a name='L136'></a><a href='#L136'>136</a>
-<a name='L137'></a><a href='#L137'>137</a>
-<a name='L138'></a><a href='#L138'>138</a>
-<a name='L139'></a><a href='#L139'>139</a>
-<a name='L140'></a><a href='#L140'>140</a>
-<a name='L141'></a><a href='#L141'>141</a>
-<a name='L142'></a><a href='#L142'>142</a>
-<a name='L143'></a><a href='#L143'>143</a>
-<a name='L144'></a><a href='#L144'>144</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L136'></a><a href='#L136'>136</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -221,9 +213,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">12x</span>
@@ -240,11 +229,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">10x</span>
@@ -253,17 +240,14 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">10x</span>
@@ -365,9 +349,6 @@ export interface ValidationResult {
 export class InvoiceValidationService {
   private static readonly GERMAN_SPEAKING_COUNTRIES = new Set(['DE', 'AT', 'CH', 'LI', 'LU']);
 &nbsp;
-  /**
-   * Validates OData invoice payload and determines target route (KSeF vs Translated PDF) and target language (German vs English).
-   */
   public validate(invoiceData: any): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -383,32 +364,27 @@ export class InvoiceValidationService {
       };
     }
 &nbsp;
-    // 1. Extract Country
     const country = this.extractCountry(invoiceData);
     <span class="missing-if-branch" title="if path not taken" >I</span>if (!country) {
 <span class="cstat-no" title="statement not covered" >      errors.push('Country information is required in invoice data (e.g., billToCountry, contractor.country, shipToCountry).');</span>
     }
 &nbsp;
-    // 2. Validate Document Identifier
     const docEntry = invoiceData.docEntry ?? invoiceData.DocEntry;
     const docNum = invoiceData.docNum ?? invoiceData.DocNum;
     if (docEntry === undefined &amp;&amp; docNum === undefined) {
       warnings.push('Invoice document entry or document number (docEntry / docNum) is missing.');
     }
 &nbsp;
-    // 3. Validate Contractor / Business Partner
     const contractor = invoiceData.contractor ?? invoiceData.BusinessPartner;
     if (!contractor &amp;&amp; !invoiceData.cardCode &amp;&amp; !invoiceData.CardCode) {
       warnings.push('Contractor/Business Partner information is missing.');
     }
 &nbsp;
-    // 4. Validate Currency
     const currency = this.extractCurrency(invoiceData);
     <span class="missing-if-branch" title="if path not taken" >I</span>if (!currency) {
 <span class="cstat-no" title="statement not covered" >      warnings.push('Currency information is missing.');</span>
     }
 &nbsp;
-    // 5. Validate Invoice Items
     const items = invoiceData.invoiceItems ?? invoiceData.InvoiceItems ?? invoiceData.items ?? invoiceData.DocumentLines;
     if (Array.isArray(items)) {
       <span class="missing-if-branch" title="if path not taken" >I</span>if (items.length === 0) {
@@ -499,7 +475,7 @@ export const invoiceValidationService = new InvoiceValidationService();
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-09-10T20:31:55.771Z
+                at 2026-09-20T19:37:07.928Z
             </div>
         <script src="prettify.js"></script>
         <script>

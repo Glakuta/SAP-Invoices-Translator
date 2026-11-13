@@ -1,4 +1,5 @@
 import cds from '@sap/cds';
+import { PdfMetadata } from './pdf';
 
 export interface DispatchLogEntry {
   docEntry: number;
@@ -15,6 +16,7 @@ export interface DispatchLogEntry {
   status: 'NEW' | 'PROCESSING' | 'ERROR' | 'SENT' | 'PDF_GENERATED';
   errorMessage?: string;
   timestamp?: Date;
+  pdfMetadata?: PdfMetadata;
 }
 
 export class DispatchLogService {
@@ -61,6 +63,7 @@ export class DispatchLogService {
       if (updates.status) updateData.status_code = updates.status;
       if (updates.errorMessage) updateData.errorMessage = updates.errorMessage;
       if (updates.contractorEmail) updateData.contractorEmail = updates.contractorEmail;
+      if (updates.pdfMetadata) updateData.pdfMetadata = updates.pdfMetadata;
 
       if (Object.keys(updateData).length > 0) {
         await UPDATE(DispatchLog).set(updateData).where({ docEntry });

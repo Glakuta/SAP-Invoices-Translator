@@ -1,5 +1,6 @@
 import { SAPService, createSAPService } from './sapService';
 import { dispatchLogService } from './dispatchLogService';
+import { handleError, InvoiceErrorType } from './handleError';
 import cds from '@sap/cds';
 
 const logger = cds.log('resetInvoiceService');
@@ -30,7 +31,12 @@ export class ResetInvoiceService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`[${cid}] Error resetting invoice ${docEntry}:`, error);
-      return { success: false, error: errorMessage };
+      return handleError({
+        type: InvoiceErrorType.SAP_ERROR,
+        message: errorMessage,
+        docEntry,
+        cause: error instanceof Error ? error : undefined,
+      });
     }
   }
 
