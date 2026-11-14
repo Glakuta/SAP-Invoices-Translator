@@ -4,6 +4,7 @@
   "dependencies": {
     "@sap/cds": "^9",
     "@sap/xb-msg-amqp-v100": "^0.9.58",
+    "axios": "^1.20.0",
     "cf-nodejs-logging-support": "^8.0.0",
     "handlebars": "^4.7.9",
     "i18next": "^26.4.2",
@@ -29,7 +30,6 @@
     "@types/node": "^24.13.3",
     "@types/nodemailer": "^8.0.1",
     "@types/puppeteer": "^5.4.7",
-    "axios": "^1.20.0",
     "dotenv": "^17.4.2",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.12",

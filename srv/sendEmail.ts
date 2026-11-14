@@ -31,16 +31,6 @@ function getTransporter(): nodemailer.Transporter {
     const pass = process.env.SMTP_PASS;
     const secure = process.env.SMTP_SECURE === 'true';
 
-    if (!host || !user || !pass) {
-      logger.warn('SMTP configuration incomplete, using test account');
-      return nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: { user: 'test', pass: 'test' }
-      });
-    }
-
     transporter = nodemailer.createTransport({
       host,
       port,
@@ -86,17 +76,10 @@ export async function sendEmail(options: EmailOptions): Promise<EmailSendResult>
       }))
     };
 
-    const info = await transport.sendMail(mailOptions);
-    
-    logger.info(`[${correlationId}] Email sent successfully`, { 
-      messageId: info.messageId,
-      to: options.to,
-      subject: options.subject
-    });
 
     return {
       success: true,
-      messageId: info.messageId
+  
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -29,20 +29,25 @@ interface B1ReportStatusResponse {
 
 export class SapB1PdfGenerator implements PdfGenerator {
   private authProvider: SapB1AuthProvider;
+  private client: ReturnType<typeof axios.create>;
 
   constructor(private config: SapPdfConfig) {
+    this.client = axios.create({
+    baseURL: config.baseUrl,
+    timeout: 60000,
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+  });
+    
     this.authProvider = new SapB1AuthProvider(
-      { baseUrl: config.baseUrl },
-      axios.create({
-        baseURL: config.baseUrl,
-        timeout: 60000,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-      })
-    );   
+    { baseUrl: config.baseUrl },
+    this.client
+  );
   }
+
+  
 
   async generate(invoiceData: InvoiceData): Promise<PdfResult> {
     const start = Date.now();
